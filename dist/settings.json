@@ -1,0 +1,62 @@
+{
+  "creator": {
+    "params": {
+      "folder-path": "C:\\Users\\Sinutsyn_V\\Downloads\\PBD2-20_wiring_plate",
+      "select-side": "top",
+      "select-origin": "bottom_left",
+      "param-enable-iso": true,
+      "param-enable-rub": true,
+      "param-enable-out": true,
+      "param-enable-drill": true,
+      "select-preset-iso": "grave_02",
+      "param-iso-dia": "0.2",
+      "param-iso-cut-z": "-0.05",
+      "param-iso-feed-xy": "150",
+      "param-iso-feed-z": "50",
+      "param-iso-spindle": "12000",
+      "param-iso-passes": "2",
+      "param-iso-overlap": "0.5",
+      "param-iso-rest-clearing": true,
+      "select-preset-rub": "mill_20",
+      "param-rub-clear-all": true,
+      "param-rub-dia": "2",
+      "param-rub-cut-z": "-0.05",
+      "param-rub-feed-xy": "500",
+      "param-rub-feed-z": "150",
+      "param-rub-spindle": "10000",
+      "param-rub-width": "5",
+      "param-rub-overlap": "0.5",
+      "select-preset-out": "mill_20",
+      "param-out-dia": "2",
+      "param-out-depth": "1.6",
+      "param-out-feed-xy": "500",
+      "param-out-feed-z": "150",
+      "param-out-spindle": "10000",
+      "param-out-passes": "4",
+      "param-out-tabs": false,
+      "param-tab-count": "4",
+      "param-tab-width": "2.0",
+      "param-tab-thick": "0.5",
+      "param-drill-depth": "1.8",
+      "param-drill-feed-z": "120",
+      "param-drill-spindle": "12000",
+      "param-safe-z": "2.0",
+      "param-use-pins": false,
+      "param-pin-dia": "2.0",
+      "param-pin-depth": "3.0",
+      "param-pin-offset": "5.0"
+    },
+    "selected_files": {
+      "outline": [
+        "Gerber_BoardOutlineLayer.GKO"
+      ],
+      "top_copper": [
+        "Gerber_TopLayer.GTL"
+      ],
+      "bottom_copper": [],
+      "drill": [
+        "Drill_PTH_Through.DRL"
+      ]
+    }
+  }
+}
