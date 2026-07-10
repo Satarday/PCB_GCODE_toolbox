@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCB Toolbox (Creator & Simulator)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <h1>🛠️ PCB Toolbox</h1>
+            <div class="app-tabs">
+                <button class="app-tab-btn active" id="tab-btn-creator" onclick="switchAppTab('creator')">Конвертер (Gerber в G-код)</button>
+                <button class="app-tab-btn" id="tab-btn-simulator" onclick="switchAppTab('simulator')">Симулятор G-кода</button>
+            </div>
+        </div>
+        <div class="header-right" style="display: flex; align-items: center; gap: 12px;">
+            <button id="btn-theme-toggle" class="btn" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; display: flex; align-items: center; gap: 6px; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-color); cursor: pointer; height: 32px; line-height: 1;">
+                <span id="theme-icon">☀️</span> <span id="theme-text">Светлая тема</span>
+            </button>
+            <div class="status-badge" id="status-text">Готов к работе</div>
+            <div class="status-badge" id="sim-status-text" style="display: none; background-color: var(--accent);">Ready</div>
+        </div>
+    </header>
+
+    <!-- 1. Creator Application Tab -->
+    <main id="app-creator" class="app-tab-content active">
+        <!-- Sidebar Panel -->
+        <div class="sidebar">
+            <!-- 1. Folder Scanning Section -->
+            <div class="section">
+                <div class="section-title">Рабочая папка</div>
+                <div class="form-group">
+                    <label for="folder-path">Путь к папке с Gerber файлами</label>
+                    <div class="input-row">
+                        <input type="text" id="folder-path" value="C:\Project\PCB_creator\gerber_example\Gerber_PCB1_2026-06-24" placeholder="Введите абсолютный путь к папке...">
+                        <button class="btn btn-icon" id="btn-select-folder" title="Выбрать папку через проводник">📁</button>
+                        <button class="btn" id="btn-scan">Сканировать</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Headers -->
+            <div class="tabs">
+                <div class="tab active" id="tab-layers-hdr" onclick="switchTab('layers')">Слои</div>
+                <div class="tab" id="tab-params-hdr" onclick="switchTab('params')">ЧПУ</div>
+                <div class="tab" id="tab-presets-hdr" onclick="switchTab('presets')">Инструменты</div>
+            </div>
+
+            <!-- Tab 1: Layers and Files -->
+            <div class="tab-content active" id="tab-layers">
+                <div class="form-group">
+                    <label>Контур платы (.GKO / .GM1)</label>
+                    <div class="multiselect-container">
+                        <button type="button" class="multiselect-trigger" id="outline-trigger" onclick="toggleDropdown('outline')">Сначала отсканируйте папку...</button>
+                        <div class="multiselect-dropdown" id="outline-dropdown"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Медь сверху (.GTL)</label>
+                    <div class="multiselect-container">
+                        <button type="button" class="multiselect-trigger" id="top-copper-trigger" onclick="toggleDropdown('top_copper')">Сначала отсканируйте папку...</button>
+                        <div class="multiselect-dropdown" id="top-copper-dropdown"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Медь снизу (.GBL)</label>
+                    <div class="multiselect-container">
+                        <button type="button" class="multiselect-trigger" id="bottom-copper-trigger" onclick="toggleDropdown('bottom_copper')">Сначала отсканируйте папку...</button>
+                        <div class="multiselect-dropdown" id="bottom-copper-dropdown"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Сверловка (.DRL / .TXT)</label>
+                    <div class="multiselect-container">
+                        <button type="button" class="multiselect-trigger" id="drill-trigger" onclick="toggleDropdown('drill')">Сначала отсканируйте папку...</button>
+                        <div class="multiselect-dropdown" id="drill-dropdown"></div>
+                    </div>
+                </div>
+
+                <div class="params-grid" style="margin-top: 16px;">
+                    <div class="form-group">
+                        <label for="select-side">Рабочая сторона</label>
+                        <select id="select-side">
+                            <option value="top">Верхняя (Top)</option>
+                            <option value="bottom">Нижняя (Bottom)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="select-origin">Начало координат (0,0)</label>
+                        <select id="select-origin">
+                            <option value="bottom_left">Левый нижний угол</option>
+                            <option value="center">Центр платы</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: CNC parameters -->
+            <div class="tab-content" id="tab-params">
+                <!-- Isolation -->
+                <div class="stage-section" id="stage-iso-section">
+                    <div class="section-title-row">
+                        <input type="checkbox" id="param-enable-iso" checked>
+                        <label for="param-enable-iso" class="stage-title">1. Изоляция дорожек</label>
+                    </div>
+                    <div class="stage-body" id="stage-iso-body">
+                        <div class="form-group">
+                            <label for="select-preset-iso">Пресет инструмента</label>
+                            <select id="select-preset-iso" class="preset-select"><option value="">-- Выберите пресет --</option></select>
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-iso-dia">Диаметр гравёра (мм)</label>
+                                <input type="number" id="param-iso-dia" value="0.2" step="0.05" min="0.05">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-iso-cut-z">Глубина гравировки Z (мм)</label>
+                                <input type="number" id="param-iso-cut-z" value="-0.05" step="0.01" max="0.0">
+                            </div>
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-iso-feed-xy">Подача XY (мм/мин)</label>
+                                <input type="number" id="param-iso-feed-xy" value="150" step="50" min="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-iso-feed-z">Подача Z (мм/мин)</label>
+                                <input type="number" id="param-iso-feed-z" value="50" step="10" min="5">
+                            </div>
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-iso-spindle">Шпиндель (об/мин)</label>
+                                <input type="number" id="param-iso-spindle" value="12000" step="1000" min="1000">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-iso-passes">Количество проходов</label>
+                                <input type="number" id="param-iso-passes" value="2" step="1" min="1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="param-iso-overlap">Перекрытие проходов (0.1 - 0.9)</label>
+                            <input type="number" id="param-iso-overlap" value="0.5" step="0.1" min="0.1" max="0.9">
+                        </div>
+                        <div class="checkbox-group" style="margin-top: 10px;">
+                            <input type="checkbox" id="param-iso-rest-clearing">
+                            <label for="param-iso-rest-clearing">Доработка узких мест (Rest Milling)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rubout -->
+                <div class="stage-section" id="stage-rub-section">
+                    <div class="section-title-row">
+                        <input type="checkbox" id="param-enable-rub" checked>
+                        <label for="param-enable-rub" class="stage-title">2. Зачистка меди</label>
+                    </div>
+                    <div class="stage-body" id="stage-rub-body">
+                        <div class="form-group">
+                            <label for="select-preset-rub">Пресет инструмента</label>
+                            <select id="select-preset-rub" class="preset-select"><option value="">-- Выберите пресет --</option></select>
+                        </div>
+                        <div class="checkbox-group" style="margin-bottom: 12px;">
+                            <input type="checkbox" id="param-rub-clear-all">
+                            <label for="param-rub-clear-all">Выбрать всю лишнюю медь</label>
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-rub-dia">Диаметр фрезы (мм)</label>
+                                <input type="number" id="param-rub-dia" value="1.0" step="0.1" min="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-rub-cut-z">Глубина зачистки Z (мм)</label>
+                                <input type="number" id="param-rub-cut-z" value="-0.05" step="0.01" max="0.0">
+                            </div>
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-rub-feed-xy">Подача XY (мм/мин)</label>
+                                <input type="number" id="param-rub-feed-xy" value="400" step="50" min="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-rub-feed-z">Подача Z (мм/мин)</label>
+                                <input type="number" id="param-rub-feed-z" value="100" step="10" min="5">
+                            </div>
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-rub-spindle">Шпиндель (об/мин)</label>
+                                <input type="number" id="param-rub-spindle" value="10000" step="1000" min="1000">
+                            </div>
+                            <div class="form-group" id="group-rub-width">
+                                <label for="param-rub-width">Ширина зачистки (мм)</label>
+                                <input type="number" id="param-rub-width" value="1.5" step="0.5" min="0.0">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="param-rub-overlap">Перекрытие фрезы (0.1 - 0.9)</label>
+                            <input type="number" id="param-rub-overlap" value="0.5" step="0.1" min="0.1" max="0.9">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Outline Cut -->
+                <div class="stage-section" id="stage-out-section">
+                    <div class="section-title-row">
+                        <input type="checkbox" id="param-enable-out" checked>
+                        <label for="param-enable-out" class="stage-title">3. Обрезка по контуру</label>
+                    </div>
+                    <div class="stage-body" id="stage-out-body">
+                        <div class="form-group">
+                            <label for="select-preset-out">Пресет инструмента</label>
+                            <select id="select-preset-out" class="preset-select"><option value="">-- Выберите пресет --</option></select>
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-out-dia">Диаметр фрезы (мм)</label>
+                                <input type="number" id="param-out-dia" value="2.0" step="0.5" min="0.5">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-out-depth">Глубина обрезки Z (мм)</label>
+                                <input type="number" id="param-out-depth" value="1.6" step="0.1" min="0.1">
+                            </div>
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-out-feed-xy">Подача XY (мм/мин)</label>
+                                <input type="number" id="param-out-feed-xy" value="500" step="50" min="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-out-feed-z">Подача Z (мм/мин)</label>
+                                <input type="number" id="param-out-feed-z" value="150" step="10" min="5">
+                            </div>
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-out-spindle">Шпиндель (об/мин)</label>
+                                <input type="number" id="param-out-spindle" value="10000" step="1000" min="1000">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-out-passes">Число проходов</label>
+                                <input type="number" id="param-out-passes" value="1" step="1" min="1">
+                            </div>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="param-out-tabs" checked>
+                            <label for="param-out-tabs">Удерживающие мостики (tabs)</label>
+                        </div>
+                        <div id="tabs-settings" class="params-grid">
+                            <div class="form-group">
+                                <label for="param-tab-count">Кол-во мостиков</label>
+                                <input type="number" id="param-tab-count" value="4" step="1" min="2">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-tab-width">Ширина (мм)</label>
+                                <input type="number" id="param-tab-width" value="2.0" step="0.5" min="0.5">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-tab-thick">Толщина (мм)</label>
+                                <input type="number" id="param-tab-thick" value="0.5" step="0.1" min="0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Drilling -->
+                <div class="stage-section" id="stage-drill-section">
+                    <div class="section-title-row">
+                        <input type="checkbox" id="param-enable-drill" checked>
+                        <label for="param-enable-drill" class="stage-title">4. Сверление отверстий</label>
+                    </div>
+                    <div class="stage-body" id="stage-drill-body">
+                        <div class="form-group">
+                            <label for="param-drill-depth">Глубина сверления Z (мм)</label>
+                            <input type="number" id="param-drill-depth" value="1.8" step="0.1" min="0.1">
+                        </div>
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label for="param-drill-feed-z">Подача Z (мм/мин)</label>
+                                <input type="number" id="param-drill-feed-z" value="120" step="10" min="5">
+                            </div>
+                            <div class="form-group">
+                                <label for="param-drill-spindle">Шпиндель (об/мин)</label>
+                                <input type="number" id="param-drill-spindle" value="12000" step="1000" min="1000">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Global parameters -->
+                <div class="stage-section" style="border: none; padding-bottom: 0;">
+                    <div class="stage-title" style="margin-bottom: 12px;">Общие параметры</div>
+                    <div class="params-grid">
+                        <div class="form-group">
+                            <label for="param-safe-z">Безопасная высота Z (Safe Z)</label>
+                            <input type="number" id="param-safe-z" value="2.0" step="0.5" min="0.5">
+                        </div>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="param-use-pins">
+                        <label for="param-use-pins">Двусторонняя плата (штифты)</label>
+                    </div>
+                    <div id="pins-settings" class="params-grid">
+                        <div class="form-group">
+                            <label for="param-pin-dia">Диаметр (мм)</label>
+                            <input type="number" id="param-pin-dia" value="2.0" step="0.1" min="0.5">
+                        </div>
+                        <div class="form-group">
+                            <label for="param-pin-depth">Глубина (мм)</label>
+                            <input type="number" id="param-pin-depth" value="3.0" step="0.5" min="1.0">
+                        </div>
+                        <div class="form-group">
+                            <label for="param-pin-offset">Отступ X/Y (мм)</label>
+                            <input type="number" id="param-pin-offset" value="5.0" step="1.0" min="1.0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Presets Manager -->
+            <div class="tab-content" id="tab-presets">
+                <div class="form-group">
+                    <label for="select-manage-preset">Инструмент</label>
+                    <select id="select-manage-preset">
+                        <option value="new">-- Новый инструмент --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="preset-name">Название пресета</label>
+                    <input type="text" id="preset-name" placeholder="Например, Фреза 1мм">
+                </div>
+                <div class="params-grid">
+                    <div class="form-group">
+                        <label for="preset-dia">Диаметр (мм)</label>
+                        <input type="number" id="preset-dia" step="0.1" min="0.05">
+                    </div>
+                    <div class="form-group">
+                        <label for="preset-feed-xy">Подача XY (мм/мин)</label>
+                        <input type="number" id="preset-feed-xy" step="50" min="0">
+                    </div>
+                </div>
+                <div class="params-grid">
+                    <div class="form-group">
+                        <label for="preset-feed-z">Подача Z (мм/мин)</label>
+                        <input type="number" id="preset-feed-z" step="10" min="5">
+                    </div>
+                    <div class="form-group">
+                        <label for="preset-spindle">Шпиндель (об/мин)</label>
+                        <input type="number" id="preset-spindle" step="1000" min="1000">
+                    </div>
+                </div>
+                <div class="input-row" style="margin-top: 16px;">
+                    <button class="btn btn-primary" id="btn-save-preset">Сохранить</button>
+                    <button class="btn btn-danger" id="btn-delete-preset" style="display: none;">Удалить</button>
+                </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="section" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: auto;">
+                <button class="btn btn-primary" id="btn-preview" style="width: 100%; margin-bottom: 10px;">Рассчитать траектории</button>
+                <button class="btn" id="btn-gcode" style="width: 100%;">Генерировать G-код</button>
+                
+                <!-- Section for output files -->
+                <div id="output-files" style="margin-top: 16px;"></div>
+            </div>
+        </div>
+
+        <!-- Preview and Canvas Section -->
+        <div class="preview-container">
+            <!-- Layers panel -->
+            <div class="layer-manager">
+                <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 10px; color: var(--text-muted);">Видимость слоёв</div>
+                <div class="layer-item">
+                    <label><span class="layer-color" style="background-color: var(--color-copper);"></span>Медь платы</label>
+                    <input type="checkbox" id="layer-copper" checked>
+                </div>
+                <div class="layer-item">
+                    <label><span class="layer-color" style="background-color: var(--color-outline);"></span>Контур платы</label>
+                    <input type="checkbox" id="layer-outline" checked>
+                </div>
+                <div class="layer-item">
+                    <label><span class="layer-color" style="background-color: var(--color-isolation);"></span>Изоляция дорожек</label>
+                    <input type="checkbox" id="layer-iso" checked>
+                </div>
+                <div class="layer-item">
+                    <label><span class="layer-color" style="background-color: var(--color-rubout);"></span>Зачистка меди</label>
+                    <input type="checkbox" id="layer-rub" checked>
+                </div>
+                <div class="layer-item">
+                    <label><span class="layer-color" style="background-color: var(--color-outline); border-style: dashed;"></span>Траектория обрезки</label>
+                    <input type="checkbox" id="layer-cut" checked>
+                </div>
+                <div class="layer-item">
+                    <label><span class="layer-color" style="background-color: var(--color-drill);"></span>Сверловка</label>
+                    <input type="checkbox" id="layer-drills" checked>
+                </div>
+                <div class="layer-item">
+                    <label><span class="layer-color" style="background-color: var(--color-pins);"></span>Базовые штифты</label>
+                    <input type="checkbox" id="layer-pins" checked>
+                </div>
+            </div>
+
+            <!-- Canvas controls -->
+            <div class="canvas-controls">
+                <button class="control-btn" id="btn-zoom-in" title="Приблизить">+</button>
+                <button class="control-btn" id="btn-zoom-out" title="Отдалить">-</button>
+                <button class="control-btn" id="btn-zoom-fit" title="По размеру">&#9635;</button>
+            </div>
+
+            <!-- Canvas -->
+            <canvas id="preview-canvas"></canvas>
+        </div>
+    </main>
+
+    <!-- 2. Simulator Application Tab -->
+    <main id="app-simulator" class="app-tab-content">
+        <!-- Sidebar Panel -->
+        <div class="sidebar">
+            <!-- 1. Folder Scanning Section -->
+            <div class="section">
+                <div class="section-title">Workspace Folder</div>
+                <div class="form-group">
+                    <label for="sim-folder-path">Path to G-code files folder</label>
+                    <div class="input-row">
+                        <input type="text" id="sim-folder-path" placeholder="Enter absolute path to folder...">
+                        <button class="btn btn-icon" id="sim-btn-select-folder" title="Select folder via explorer">📁</button>
+                        <button class="btn" id="sim-btn-scan">Scan</button>
+                    </div>
+                </div>
+                
+                <!-- Scanned G-code Files -->
+                <div class="form-group" style="margin-top: 12px;">
+                    <label>Available Files (.gcode, .nc, .tap)</label>
+                    <div class="file-list" id="file-list-container">
+                        <div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                            No scanned files found
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Direct File Upload Section -->
+            <div class="section">
+                <div class="section-title">Quick Upload</div>
+                <div class="upload-zone" id="drop-zone">
+                    <div class="upload-icon">📥</div>
+                    <p>Drag and drop a .gcode / .nc file here<br>or click to select</p>
+                    <input type="file" id="file-input" class="hidden" accept=".gcode,.nc,.tap,.txt,.cnc">
+                </div>
+            </div>
+
+            <!-- 3. Simulation Status & Controls -->
+            <div class="section" style="flex-grow: 1; display: flex; flex-direction: column;">
+                <div class="section-title">Simulation & Control</div>
+
+                <!-- Coordinates & Machine Status -->
+                <div class="coordinates-grid">
+                    <div class="coordinate-box">
+                        <div class="coordinate-label">X (mm)</div>
+                        <div class="coordinate-value" id="val-x">0.000</div>
+                    </div>
+                    <div class="coordinate-box">
+                        <div class="coordinate-label">Y (mm)</div>
+                        <div class="coordinate-value" id="val-y">0.000</div>
+                    </div>
+                    <div class="coordinate-box">
+                        <div class="coordinate-label">Z (mm)</div>
+                        <div class="coordinate-value" id="val-z">0.000</div>
+                    </div>
+                </div>
+
+                <div class="coordinates-grid" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="coordinate-box" id="box-feed">
+                        <div class="coordinate-label">Feed F (mm/min)</div>
+                        <div class="coordinate-value" id="val-feed">0</div>
+                    </div>
+                    <div class="coordinate-box">
+                        <div class="coordinate-label">Spindle S (RPM)</div>
+                        <div class="coordinate-value" id="val-spindle">0</div>
+                    </div>
+                </div>
+
+                <!-- Playback controls -->
+                <div class="play-controls">
+                    <!-- Progress / Timeline scrub -->
+                    <div class="slider-container">
+                        <label for="progress-slider" id="progress-time-label">0:00 / 0:00</label>
+                        <input type="range" id="progress-slider" class="range-slider" min="0" max="1000" value="0">
+                    </div>
+
+                    <!-- Speed selector -->
+                    <div class="slider-container">
+                        <label for="speed-select">Speed:</label>
+                        <select id="speed-select">
+                            <option value="1">1x (Real)</option>
+                            <option value="2">2x</option>
+                            <option value="5">5x</option>
+                            <option value="10" selected>10x</option>
+                            <option value="25">25x</option>
+                            <option value="50">50x</option>
+                            <option value="100">100x</option>
+                            <option value="500">500x</option>
+                            <option value="1000">1000x (Max)</option>
+                        </select>
+                    </div>
+
+                    <!-- View selector -->
+                    <div class="slider-container">
+                        <label for="view-select">Projection:</label>
+                        <select id="view-select">
+                            <option value="top" selected>Top (XY)</option>
+                            <option value="side-xz">Side (XZ)</option>
+                            <option value="isometric">3D View (Drag to rotate)</option>
+                        </select>
+                    </div>
+
+                    <!-- PCB Thickness -->
+                    <div class="slider-container">
+                        <label for="pcb-thickness">Board Thickness:</label>
+                        <div class="input-row" style="flex: 1; gap: 4px; align-items: center;">
+                            <input type="number" id="pcb-thickness" value="1.5" step="0.1" min="0.1" style="max-width: 90px; text-align: center;">
+                            <span style="font-size: 0.85rem; color: var(--text-muted);">mm</span>
+                        </div>
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div class="playback-buttons">
+                        <button class="btn btn-primary" id="btn-play" disabled>Play</button>
+                        <button class="btn" id="btn-reset" disabled>Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Path & Workpiece Statistics -->
+            <div class="section">
+                <div class="section-title">Statistics</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Board Size</div>
+                        <div class="stat-value" id="stat-dimensions">0 x 0 mm</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Est. Time</div>
+                        <div class="stat-value" id="stat-est-time">00:00</div>
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Cutting (G1)</div>
+                        <div class="stat-value" id="stat-cut-len">0.0 mm</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Travel (G0)</div>
+                        <div class="stat-value" id="stat-rapid-len">0.0 mm</div>
+                    </div>
+                </div>
+
+                <!-- Legend of path types -->
+                <div class="legend-container">
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: var(--color-rapid);"></span>
+                        <span>Travel (G0)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: var(--color-cut);"></span>
+                        <span>Cutting (G1)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: var(--color-plunge);"></span>
+                        <span>Plunge (Z-)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: var(--color-retract);"></span>
+                        <span>Retract (Z+)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview and Canvas Section -->
+        <div class="preview-container">
+            <!-- Canvas controls -->
+            <div class="canvas-controls">
+                <button class="control-btn" id="sim-btn-zoom-in" title="Zoom In">+</button>
+                <button class="control-btn" id="sim-btn-zoom-out" title="Zoom Out">-</button>
+                <button class="control-btn" id="sim-btn-zoom-fit" title="Zoom Fit">&#9635;</button>
+            </div>
+
+            <!-- Canvas -->
+            <canvas id="sim-preview-canvas"></canvas>
+        </div>
+
+        <!-- G-code Text Viewer Panel -->
+        <div class="gcode-panel">
+            <div class="gcode-header">G-code Content (<span id="gcode-line-count">0</span> lines)</div>
+            <div class="gcode-lines-container" id="gcode-lines-box">
+                <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                    No file loaded
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 3. Footers for both applications -->
+    <div class="info-bar" id="creator-info-bar">
+        <div class="info-item">Размер платы: <span id="info-dimensions">0.00 x 0.00 мм</span></div>
+        <div class="info-item">Статус: <span id="info-status">Файлы не загружены</span></div>
+        <div class="info-item" id="info-file-location"></div>
+    </div>
+
+    <div class="info-bar" id="simulator-info-bar" style="display: none;">
+        <div class="info-item">Active File: <span id="info-filename">None</span></div>
+        <div class="info-item">Tool (Dia): <span id="info-tool-dia">Not specified</span></div>
+        <div class="info-item">Max Z: <span id="info-max-z">0.00</span> / Min Z: <span id="info-min-z">0.00</span></div>
+    </div>
+
+    <!-- Tab switching and App Logic -->
+    <script>
+        // Apply theme from localStorage immediately to avoid flickering
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-theme');
+            }
+        })();
+
+        function switchAppTab(tabId) {
+            // Update buttons
+            document.getElementById('tab-btn-creator').classList.toggle('active', tabId === 'creator');
+            document.getElementById('tab-btn-simulator').classList.toggle('active', tabId === 'simulator');
+
+            // Update main content containers
+            document.getElementById('app-creator').classList.toggle('active', tabId === 'creator');
+            document.getElementById('app-simulator').classList.toggle('active', tabId === 'simulator');
+
+            // Update status badges in header
+            document.getElementById('status-text').style.display = tabId === 'creator' ? 'block' : 'none';
+            document.getElementById('sim-status-text').style.display = tabId === 'simulator' ? 'block' : 'none';
+
+            // Update footers
+            document.getElementById('creator-info-bar').style.display = tabId === 'creator' ? 'flex' : 'none';
+            document.getElementById('simulator-info-bar').style.display = tabId === 'simulator' ? 'flex' : 'none';
+            
+            // Trigger canvas resize on tab switch so it draws correctly
+            if (tabId === 'creator' && typeof window.creatorResizeCanvas === 'function') {
+                window.creatorResizeCanvas();
+            } else if (tabId === 'simulator' && typeof window.simResizeCanvas === 'function') {
+                window.simResizeCanvas();
+            }
+        }
+
+        // Theme toggle logic after DOM loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeBtn = document.getElementById('btn-theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            const themeText = document.getElementById('theme-text');
+
+            // Update toggle button text/icon based on active theme
+            if (document.body.classList.contains('light-theme')) {
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Тёмная тема';
+            }
+
+            themeBtn.addEventListener('click', () => {
+                const isLight = document.body.classList.toggle('light-theme');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                
+                themeIcon.textContent = isLight ? '🌙' : '☀️';
+                themeText.textContent = isLight ? 'Тёмная тема' : 'Светлая тема';
+                
+                // Trigger redrawing on both canvases to update background/grid colors
+                if (typeof window.creatorResizeCanvas === 'function') {
+                    window.creatorResizeCanvas();
+                }
+                if (typeof window.simResizeCanvas === 'function') {
+                    window.simResizeCanvas();
+                }
+            });
+        });
+    </script>
+    <script src="creator.js"></script>
+    <script src="simulator.js"></script>
+</body>
+</html>

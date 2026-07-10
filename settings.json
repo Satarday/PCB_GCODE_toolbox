@@ -1,0 +1,61 @@
+{
+  "params": {
+    "folder-path": "C:\\Users\\Sinutsyn_V\\Downloads\\Gerber_775_PCB_775_2026-07-09",
+    "select-side": "bottom",
+    "select-origin": "bottom_left",
+    "param-enable-iso": true,
+    "param-enable-rub": false,
+    "param-enable-out": true,
+    "param-enable-drill": true,
+    "select-preset-iso": "grave_02",
+    "param-iso-dia": "0.1",
+    "param-iso-cut-z": "-0.05",
+    "param-iso-feed-xy": "300",
+    "param-iso-feed-z": "100",
+    "param-iso-spindle": "15000",
+    "param-iso-passes": "5",
+    "param-iso-overlap": "0.5",
+    "select-preset-rub": "",
+    "param-rub-clear-all": false,
+    "param-rub-dia": "1.0",
+    "param-rub-cut-z": "-0.05",
+    "param-rub-feed-xy": "400",
+    "param-rub-feed-z": "100",
+    "param-rub-spindle": "10000",
+    "param-rub-width": "1.5",
+    "param-rub-overlap": "0.5",
+    "select-preset-out": "my_custom_preset",
+    "param-out-dia": "2",
+    "param-out-depth": "1.9",
+    "param-out-feed-xy": "300",
+    "param-out-feed-z": "80",
+    "param-out-spindle": "15000",
+    "param-out-tabs": false,
+    "param-tab-count": "4",
+    "param-tab-width": "2.0",
+    "param-tab-thick": "0.5",
+    "select-preset-drill": "drill_08",
+    "param-drill-depth": "1.9",
+    "param-drill-feed-z": "120",
+    "param-drill-spindle": "15000",
+    "param-safe-z": "2.0",
+    "param-use-pins": false,
+    "param-pin-dia": "3.0",
+    "param-pin-depth": "5.0",
+    "param-pin-offset": "5.0"
+  },
+  "selected_files": {
+    "outline": [
+      "Gerber_BoardOutlineLayer.GKO"
+    ],
+    "top_copper": [
+      "Gerber_TopLayer.GTL"
+    ],
+    "bottom_copper": [
+      "Gerber_BottomLayer.GBL"
+    ],
+    "drill": [
+      "Drill_PTH_Through.DRL"
+    ]
+  }
+}

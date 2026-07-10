@@ -1,0 +1,26 @@
+[
+  {
+    "id": "grave_02",
+    "name": "Гравёр V-образный 0.1 мм (30°)",
+    "diameter": 0.1,
+    "feed_xy": 300.0,
+    "feed_z": 100.0,
+    "spindle": 15000.0
+  },
+  {
+    "id": "drill_08",
+    "name": "Сверло 1 мм",
+    "diameter": 1.0,
+    "feed_xy": 0.0,
+    "feed_z": 120.0,
+    "spindle": 15000.0
+  },
+  {
+    "id": "my_custom_preset",
+    "name": "Фреза 2 мм",
+    "diameter": 2.0,
+    "feed_xy": 300.0,
+    "feed_z": 80.0,
+    "spindle": 15000.0
+  }
+]
