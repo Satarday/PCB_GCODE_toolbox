@@ -1,34 +1,23 @@
-import os
-import re
-import sys
-import webbrowser
 import json
+import os
 import subprocess
-import time
+import sys
 import threading
+import time
+import webbrowser
 from threading import Timer
-from typing import Dict, Any, List
+from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from gerber_parser import GerberParser, ExcellonParser
+from config import PRESETS_FILE, SETTINGS_FILE
 from gcode_generator import GCodeGenerator
-from simulator_router import router as simulator_router, register_dialog_active_setter
-
-# Presets Management
-if getattr(sys, 'frozen', False):
-    PRESETS_FILE = os.path.join(os.path.dirname(sys.executable), "presets.json")
-else:
-    PRESETS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "presets.json")
-
-if getattr(sys, 'frozen', False):
-    SETTINGS_FILE = os.path.join(os.path.dirname(sys.executable), "settings.json")
-else:
-    SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+from gerber_parser import ExcellonParser, GerberParser
+from simulator_router import register_dialog_active_setter, router as simulator_router
 
 DEFAULT_PRESETS = [
     {"id": "grave_02", "name": "Гравёр V-образный 0.2мм (30°)", "diameter": 0.2, "feed_xy": 150.0, "feed_z": 50.0, "spindle": 12000.0},
@@ -46,7 +35,7 @@ def load_presets():
         except Exception:
             return DEFAULT_PRESETS
     try:
-        with open(PRESETS_FILE, 'r', encoding='utf-8') as f:
+        with open(PRESETS_FILE, encoding='utf-8') as f:
             return json.load(f)
     except Exception:
         return DEFAULT_PRESETS
@@ -110,24 +99,24 @@ class ScanFolderRequest(BaseModel):
 
 class PreviewPathsRequest(BaseModel):
     folder_path: str
-    top_copper_files: List[str] = []
-    bottom_copper_files: List[str] = []
-    outline_files: List[str] = []
-    drill_files: List[str] = []
+    top_copper_files: list[str] = []
+    bottom_copper_files: list[str] = []
+    outline_files: list[str] = []
+    drill_files: list[str] = []
     side: str = "top"  # "top" or "bottom"
-    params: Dict[str, Any]
+    params: dict[str, Any]
 
 class GenerateGCodeRequest(BaseModel):
     folder_path: str
-    top_copper_files: List[str] = []
-    bottom_copper_files: List[str] = []
-    outline_files: List[str] = []
-    drill_files: List[str] = []
+    top_copper_files: list[str] = []
+    bottom_copper_files: list[str] = []
+    outline_files: list[str] = []
+    drill_files: list[str] = []
     side: str = "top"
-    params: Dict[str, Any]
+    params: dict[str, Any]
 
 # Helper to extract paths for response JSON
-def geom_to_paths(geom) -> List[List[List[float]]]:
+def geom_to_paths(geom) -> list[list[list[float]]]:
     paths = []
     if geom.is_empty:
         return paths
@@ -152,12 +141,12 @@ def select_folder():
         else:
             # In dev mode, run python with main.py
             cmd = [sys.executable, os.path.abspath(__file__), "--pick-folder-gerber"]
-            
+
         # Run subprocess silently without flashing cmd console
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = subprocess.SW_HIDE
-        
+
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -166,14 +155,14 @@ def select_folder():
             startupinfo=startupinfo
         )
         stdout, stderr = proc.communicate()
-        
+
         folder_path = stdout.strip()
         if folder_path:
             folder_path = os.path.normpath(folder_path)
-            
+
         return {"folder_path": folder_path}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Не удалось открыть диалог: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Не удалось открыть диалог: {str(e)}") from e
     finally:
         dialog_active = False
 
@@ -193,17 +182,17 @@ def shutdown():
     return {"status": "ok"}
 
 class SettingsPayload(BaseModel):
-    params: Dict[str, Any]
-    selected_files: Dict[str, List[str]]
+    params: dict[str, Any]
+    selected_files: dict[str, list[str]]
 
 @app.get("/api/creator/settings")
 def get_settings():
     if not os.path.exists(SETTINGS_FILE):
         return {}
     try:
-        with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+        with open(SETTINGS_FILE, encoding='utf-8') as f:
             data = json.load(f)
-        
+
         # Migrate old settings structure if present at root level
         if "creator" not in data and ("params" in data or "selected_files" in data):
             creator_data = {
@@ -216,7 +205,7 @@ def get_settings():
                     json.dump(data, f, indent=2, ensure_ascii=False)
             except Exception:
                 pass
-                
+
         return data.get("creator", {})
     except Exception:
         return {}
@@ -227,18 +216,18 @@ def save_settings(payload: SettingsPayload):
         data = {}
         if os.path.exists(SETTINGS_FILE):
             try:
-                with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                with open(SETTINGS_FILE, encoding='utf-8') as f:
                     data = json.load(f)
             except Exception:
                 pass
-        
+
         data["creator"] = payload.model_dump()
-        
+
         with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return {"status": "ok"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Не удалось сохранить настройки: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Не удалось сохранить настройки: {str(e)}") from e
 
 @app.get("/api/creator/presets")
 def get_presets():
@@ -255,7 +244,7 @@ def save_preset(preset: Preset):
             break
     if not updated:
         presets.append(preset.model_dump())
-    
+
     if save_presets(presets):
         return {"status": "ok", "presets": presets}
     else:
@@ -286,7 +275,7 @@ def scan_folder(request: ScanFolderRequest):
             if os.path.isfile(os.path.join(path, f)):
                 files.append(f)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка чтения папки: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка чтения папки: {str(e)}") from e
 
     # Detect default files
     detected = {
@@ -309,7 +298,7 @@ def scan_folder(request: ScanFolderRequest):
     drl_files = [f for f in files if f.lower().endswith('.drl')]
     txt_drill_files = [f for f in files if f.lower().endswith('.txt') and 'drill' in f.lower()]
     other_drill_files = [f for f in files if 'drill' in f.lower() and f not in drl_files and f not in txt_drill_files]
-    
+
     if drl_files:
         detected["drill"] = drl_files
     elif txt_drill_files:
@@ -325,7 +314,7 @@ def scan_folder(request: ScanFolderRequest):
 @app.post("/api/creator/preview_paths")
 def preview_paths(request: PreviewPathsRequest):
     folder = request.folder_path
-    
+
     # 1. Resolve file paths
     outline_paths = [os.path.join(folder, f) for f in request.outline_files if f]
     copper_files = request.top_copper_files if request.side == "top" else request.bottom_copper_files
@@ -341,7 +330,7 @@ def preview_paths(request: PreviewPathsRequest):
         # 2. Parse geometries
         outline_geom = GerberParser().parse_outline_multiple(outline_paths)
         copper_geom = GerberParser().parse_copper_multiple(copper_paths)
-        
+
         drills = []
         if drill_paths:
             drills = ExcellonParser().parse_multiple(drill_paths)
@@ -356,7 +345,7 @@ def preview_paths(request: PreviewPathsRequest):
         # Calculate Shift parameters for preview mirroring & origin shifting
         # Center everything at 0,0, apply mirror, then shift to final origin
         generator = GCodeGenerator(request.params)
-        
+
         # Center and translate geometries
         centered_copper = generator._shift_geometry(copper_geom, -cx, -cy)
         centered_outline = generator._shift_geometry(outline_geom, -cx, -cy)
@@ -391,7 +380,7 @@ def preview_paths(request: PreviewPathsRequest):
             })
 
         # Resolve board polygon for intersection operations
-        from shapely.geometry import MultiPolygon, Polygon
+        from shapely.geometry import MultiPolygon
         if isinstance(final_outline, MultiPolygon):
             board_poly = max(final_outline.geoms, key=lambda p: p.area)
         else:
@@ -405,11 +394,11 @@ def preview_paths(request: PreviewPathsRequest):
                 rest_paths = generator._generate_rest_clearing_paths(final_copper, board_poly)
                 if rest_paths:
                     iso_paths.extend(rest_paths)
-            
+
         rub_paths = []
         if request.params.get("enable_rubout", True) and request.params.get("rubout_width", 0.0) > 0:
             rub_paths = generator._generate_rubout_paths(final_copper, board_poly)
-        
+
         # Outline cut path
         out_paths = []
         if request.params.get("enable_outline", True):
@@ -433,15 +422,15 @@ def preview_paths(request: PreviewPathsRequest):
             pin_dia = request.params.get("alignment_pin_dia", 3.0)
             pin_offset = request.params.get("alignment_pin_offset", 5.0)
             r = pin_dia / 2.0
-            
+
             px1 = -width / 2.0 - pin_offset
             px2 = width / 2.0 + pin_offset
             py = 0.0
-            
+
             px1 += dx
             px2 += dx
             py += dy
-            
+
             # Crosses for pin drilling preview
             pin_paths.append([[px1 - r, py], [px1 + r, py]])
             pin_paths.append([[px1, py - r], [px1, py + r]])
@@ -468,7 +457,7 @@ def preview_paths(request: PreviewPathsRequest):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Ошибка генерации превью: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации превью: {str(e)}") from e
 
 @app.post("/api/creator/generate_gcode")
 def generate_gcode(request: GenerateGCodeRequest):
@@ -487,7 +476,7 @@ def generate_gcode(request: GenerateGCodeRequest):
         # Parse
         outline_geom = GerberParser().parse_outline_multiple(outline_paths)
         copper_geom = GerberParser().parse_copper_multiple(copper_paths)
-        
+
         drills = []
         if drill_paths:
             drills = ExcellonParser().parse_multiple(drill_paths)
@@ -518,7 +507,7 @@ def generate_gcode(request: GenerateGCodeRequest):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка генерации G-кода: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации G-кода: {str(e)}") from e
 
 app.include_router(simulator_router)
 
@@ -536,15 +525,15 @@ def open_browser():
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] in ("--pick-folder", "--pick-folder-gerber", "--pick-folder-gcode"):
+        import ctypes
         import tkinter as tk
         from tkinter import filedialog
-        import ctypes
-        
+
         mode = sys.argv[1]
-        
+
         root = tk.Tk()
         root.withdraw()
-        
+
         # Make the dialog topmost and bring it to front
         root.attributes('-topmost', True)
         root.lift()
@@ -554,12 +543,12 @@ if __name__ == "__main__":
             ctypes.windll.user32.SetForegroundWindow(hwnd)
         except Exception:
             pass
-            
+
         if mode == "--pick-folder-gcode":
             title = "Select Folder with G-code Files"
         else:
             title = "Выберите папку с Gerber файлами"
-            
+
         folder = filedialog.askdirectory(
             parent=root,
             title=title
@@ -571,10 +560,10 @@ if __name__ == "__main__":
 
     if not getattr(sys, 'frozen', False):
         os.makedirs(static_path, exist_ok=True)
-    
+
     # Start browser with a slight delay
     Timer(1.5, open_browser).start()
-    
+
     # Run Uvicorn
     if getattr(sys, 'frozen', False):
         uvicorn.run(app, host="127.0.0.1", port=8000)

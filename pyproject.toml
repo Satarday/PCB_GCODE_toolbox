@@ -1,0 +1,61 @@
+[tool.poetry]
+name = "pcb-gcode-toolbox"
+version = "1.0.0"
+description = "A simple PCB milling software featuring a Gerber-to-G-code generator and a simulator."
+authors = ["Satarday"]
+readme = "README.md"
+packages = [
+    { include = "gerber_parser.py" },
+    { include = "gcode_generator.py" },
+    { include = "simulator_router.py" },
+    { include = "config.py" },
+    { include = "main.py" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = ">=0.100.0"
+uvicorn = ">=0.20.0"
+shapely = ">=2.0.0"
+numpy = ">=1.20.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.0.0"
+ruff = ">=0.1.0"
+pre-commit = ">=3.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+# Target Python version
+target-version = "py310"
+
+# Line length standard
+line-length = 120
+
+# Linting rules configuration
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade (modern Python syntax)
+]
+ignore = [
+    "E501", # Line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+known-first-party = ["gerber_parser", "gcode_generator", "simulator_router", "config", "main"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
