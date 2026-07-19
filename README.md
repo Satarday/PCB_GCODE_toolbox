@@ -94,6 +94,13 @@
 2. При переключении обработки на нижнюю сторону (Bottom) программа автоматически зеркально отображает всю геометрию платы относительно центральной оси.
 3. Заготовка переворачивается вокруг оси симметрии и позиционируется на штифтах, что гарантирует точное совмещение координат сторон платы.
 
+## 5. Устранение неполадок
+
+- Проблема: Браузер не открывается автоматически при запуске PCB_toolbox.exe.
+  Решение: Убедитесь, что процесс запущен, и вручную введите в адресную строку браузера: http://127.0.0.1:8000.
+- Проблема: Ошибка доступа при сохранении параметров или пресетов.
+  Решение: Убедитесь, что у вашего пользователя есть права на запись в папку %APPDATA% (на Windows) или ~/.config (на Linux/macOS).
+
 ---
 
 # User Manual PCB_GCODE_toolbox
@@ -191,3 +198,10 @@ For double-sided PCB milling, a registration system with alignment pins is used:
 1. In the wasteboard, reference holes are drilled according to the alignment_pins.gcode file, and pins of the diameter specified in the Alignment Pin Dia parameter are mounted.
 2. When switching processing to the Bottom side, the program automatically mirrors all board geometry along the central Y axis.
 3. The workpiece is flipped around the axis of symmetry and positioned on the pins, ensuring precise alignment of coordinate systems between sides.
+
+## 5. Troubleshooting
+
+- Issue: The browser window does not open automatically upon launching PCB_toolbox.exe.
+  Solution: Verify that the process is running, and manually enter http://127.0.0.1:8000 into the address bar of your browser.
+- Issue: Access denied error when trying to save parameters or presets.
+  Solution: Ensure your user account has write permissions to %APPDATA% (on Windows) or ~/.config (on Linux/macOS).
