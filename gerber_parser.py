@@ -1,7 +1,9 @@
-import re
 import math
-from shapely.geometry import Point, LineString, Polygon, MultiPolygon, box
+import re
+
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
+
 
 class GerberParser:
     def __init__(self):
@@ -24,7 +26,7 @@ class GerberParser:
         self.interpolation_mode = 1  # 1: G01, 2: G02 (CW), 3: G03 (CCW)
 
     def parse(self, filepath):
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
             content = f.read()
 
         # 1. Parse parameter blocks enclosed in %
@@ -39,7 +41,7 @@ class GerberParser:
 
         # Split content by '*' which is the Gerber command terminator
         commands = standard_content.split('*')
-        
+
         for cmd in commands:
             cmd = cmd.strip()
             if not cmd:
@@ -50,7 +52,7 @@ class GerberParser:
         if len(self.current_raw_path) >= 2:
             self.raw_paths.append(self.current_raw_path)
             self.current_raw_path = []
-            
+
         # Merge all copper shapes into a single MultiPolygon
         if self.shapes:
             merged = unary_union(self.shapes)
@@ -64,7 +66,7 @@ class GerberParser:
         """Parses multiple copper files and merges them into a single MultiPolygon."""
         if isinstance(filepaths, str):
             filepaths = [filepaths]
-            
+
         all_shapes = []
         for fp in filepaths:
             if not fp:
@@ -76,7 +78,7 @@ class GerberParser:
                     all_shapes.extend(geom.geoms)
                 elif isinstance(geom, Polygon):
                     all_shapes.append(geom)
-            
+
         if all_shapes:
             merged = unary_union(all_shapes)
             if isinstance(merged, Polygon):
@@ -92,10 +94,10 @@ class GerberParser:
         """Parses multiple outline files, combines their paths, and returns a solid Polygon."""
         if isinstance(filepaths, str):
             filepaths = [filepaths]
-            
+
         all_raw_paths = []
         all_shapes = []
-        
+
         for fp in filepaths:
             if not fp:
                 continue
@@ -103,9 +105,9 @@ class GerberParser:
             parser.parse(fp)
             all_raw_paths.extend(parser.raw_paths)
             all_shapes.extend(parser.shapes)
-            
+
         from shapely.ops import linemerge, polygonize
-        
+
         # Round coordinates to 4 decimal places (0.1 microns) to fix micro-gaps from float arithmetic
         lines = []
         for p in all_raw_paths:
@@ -118,7 +120,7 @@ class GerberParser:
                         dedup_p.append(pt)
                 if len(dedup_p) >= 2:
                     lines.append(LineString(dedup_p))
-                    
+
         polys = []
         if lines:
             try:
@@ -126,18 +128,18 @@ class GerberParser:
                 polys = list(polygonize(merged))
             except Exception:
                 pass
-                
+
         if polys:
             merged_poly = unary_union(polys)
             if isinstance(merged_poly, Polygon):
                 return merged_poly
             elif isinstance(merged_poly, MultiPolygon):
                 return max(merged_poly.geoms, key=lambda p: p.area)
-                
+
         # If polygonize fails or we have no lines, try to reconstruct from all_shapes (drawn line shapes/solid regions)
         if all_shapes:
             merged = unary_union(all_shapes)
-            
+
             # Helper to fill holes of a Polygon/MultiPolygon to get the solid interior
             def fill_polygon_holes(geom):
                 if geom.is_empty:
@@ -157,7 +159,7 @@ class GerberParser:
                 return filled
             elif isinstance(filled, MultiPolygon):
                 return max(filled.geoms, key=lambda p: p.area)
-                
+
         return Polygon()
 
     def _parse_parameter(self, param):
@@ -166,7 +168,7 @@ class GerberParser:
             self.unit_multiplier = 1.0
         elif param == 'MOIN':
             self.unit_multiplier = 25.4
-            
+
         # 2. Coordinate Format
         # Example: FSLAX45Y45
         elif param.startswith('FS'):
@@ -186,7 +188,7 @@ class GerberParser:
                 ap_id = int(match.group(1))
                 ap_type = match.group(2)
                 ap_params_str = match.group(3)
-                
+
                 # Split params by 'X' or 'x'
                 ap_params = [float(p) for p in re.split(r'[Xx]', ap_params_str)]
                 self.apertures[ap_id] = {
@@ -222,7 +224,7 @@ class GerberParser:
             if self.current_path:
                 self.region_paths.append(self.current_path)
                 self.current_path = []
-            
+
             # Combine paths in region mode using symmetric difference (even-odd rule)
             region_poly = Polygon()
             for path in self.region_paths:
@@ -300,7 +302,7 @@ class GerberParser:
                         if not self.current_raw_path:
                             self.current_raw_path = [pts[0]]
                         self.current_raw_path.extend(pts[1:])
-                        
+
                         # Create track geometry from arc points
                         if self.current_aperture in self.apertures:
                             ap = self.apertures[self.current_aperture]
@@ -336,21 +338,21 @@ class GerberParser:
         r = math.hypot(i_offset, j_offset)
         if r == 0:
             return [(x1, y1), (x2, y2)]
-            
+
         start_angle = math.atan2(y1 - cy, x1 - cx)
         end_angle = math.atan2(y2 - cy, x2 - cx)
-        
+
         if is_cw:
             if end_angle >= start_angle:
                 end_angle -= 2 * math.pi
         else:
             if end_angle <= start_angle:
                 end_angle += 2 * math.pi
-                
+
         angle_diff = abs(end_angle - start_angle)
         # 1 segment per 0.1 radians (~5.7 degrees)
         num_segments = max(int(angle_diff / 0.1), 8)
-        
+
         points = []
         for step in range(num_segments + 1):
             t = step / num_segments
@@ -368,7 +370,7 @@ class GerberParser:
     def _create_track_geometry(self, x1, y1, x2, y2, aperture):
         ap_type = aperture['type']
         params = aperture['params']
-        
+
         # If coordinates are identical, it is a point flash
         if x1 == x2 and y1 == y2:
             return self._create_flash_geometry(x1, y1, aperture)
@@ -377,14 +379,14 @@ class GerberParser:
             diameter = params[0]
             # Draw line and buffer by radius
             return LineString([(x1, y1), (x2, y2)]).buffer(diameter / 2.0)
-            
+
         elif ap_type == 'R':  # Rectangular aperture
             w, h = params[0], params[1]
             rect1 = box(x1 - w/2, y1 - h/2, x1 + w/2, y1 + h/2)
             rect2 = box(x2 - w/2, y2 - h/2, x2 + w/2, y2 + h/2)
             # Swept path of rectangle is the convex hull of start and end positions
             return MultiPolygon([rect1, rect2]).convex_hull
-            
+
         elif ap_type == 'O':  # Obround aperture
             # Treat as rounded rectangle
             w, h = params[0], params[1]
@@ -409,24 +411,23 @@ class GerberParser:
         if ap_type == 'C':  # Circle
             diameter = params[0]
             return Point(x, y).buffer(diameter / 2.0)
-            
+
         elif ap_type == 'R':  # Rectangle
             w, h = params[0], params[1]
             return box(x - w/2, y - h/2, x + w/2, y + h/2)
-            
+
         elif ap_type == 'O':  # Obround
             w, h = params[0], params[1]
             if w > h:
                 return LineString([(x - (w-h)/2, y), (x + (w-h)/2, y)]).buffer(h / 2.0)
             else:
                 return LineString([(x, y - (h-w)/2), (x, y + (h-w)/2)]).buffer(w / 2.0)
-                
+
         elif ap_type in ['P', 'Polygon']:  # Regular Polygon
             diameter = params[0]
-            sides = int(params[1]) if len(params) > 1 else 6
             # Approximate as circle for milling purposes
             return Point(x, y).buffer(diameter / 2.0)
-            
+
         # Check if type matches a defined aperture macro
         elif ap_type in self.macros:
             return self._evaluate_macro(ap_type, x, y, params)
@@ -435,14 +436,14 @@ class GerberParser:
 
     def _evaluate_macro(self, macro_name, x, y, params):
         from shapely.affinity import rotate, translate
-        
+
         shapes = []
         for prim in self.macros[macro_name]:
             parts = prim.split(',')
             if not parts:
                 continue
             prim_code = parts[0].strip()
-            
+
             # Primitive 21: Center Line / Rectangle
             # format: 21, exposure, width, height, center_x, center_y, rotation
             if prim_code == '21':
@@ -453,17 +454,17 @@ class GerberParser:
                     cx = self._eval_val(parts[4], params)
                     cy = self._eval_val(parts[5], params)
                     rotation = self._eval_val(parts[6], params)
-                    
+
                     # Create the box at the macro local coords
                     rect = box(cx - w/2, cy - h/2, cx + w/2, cy + h/2)
                     if rotation != 0.0:
                         rect = rotate(rect, rotation, origin=(cx, cy))
                     # Translate to the flash coordinates
                     rect = translate(rect, xoff=x, yoff=y)
-                    
+
                     if exposure == 1:
                         shapes.append(rect)
-                        
+
             # Primitive 1: Circle
             # format: 1, exposure, diameter, center_x, center_y[, rotation]
             elif prim_code == '1':
@@ -472,13 +473,13 @@ class GerberParser:
                     dia = self._eval_val(parts[2], params)
                     cx = self._eval_val(parts[3], params)
                     cy = self._eval_val(parts[4], params)
-                    
+
                     circle = Point(cx, cy).buffer(dia / 2.0)
                     circle = translate(circle, xoff=x, yoff=y)
-                    
+
                     if exposure == 1:
                         shapes.append(circle)
-                        
+
         if shapes:
             return unary_union(shapes)
         return None
@@ -508,7 +509,7 @@ class ExcellonParser:
 
     def parse(self, filepath):
         drills = []
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
             lines = f.readlines()
 
         in_header = False
@@ -530,7 +531,7 @@ class ExcellonParser:
                     self.unit_multiplier = 1.0
                 elif 'INCH' in line:
                     self.unit_multiplier = 25.4
-                
+
                 # Tool definition: T01C1.0 or T1C1.00
                 t_match = re.match(r'T(\d+)C([\d.]+)', line)
                 if t_match:
@@ -549,14 +550,14 @@ class ExcellonParser:
             if line.startswith('X') or line.startswith('Y'):
                 x_match = re.search(r'X([+-]?[\d.]+)', line)
                 y_match = re.search(r'Y([+-]?[\d.]+)', line)
-                
+
                 if x_match or y_match:
                     x_str = x_match.group(1) if x_match else None
                     y_str = y_match.group(1) if y_match else None
-                    
+
                     x = self._parse_coord(x_str)
                     y = self._parse_coord(y_str)
-                    
+
                     if x is not None or y is not None:
                         drills.append({
                             'x': x or 0.0,
@@ -571,7 +572,7 @@ class ExcellonParser:
         """Parses multiple Excellon files and returns a combined list of drill hits."""
         if isinstance(filepaths, str):
             filepaths = [filepaths]
-            
+
         all_drills = []
         for fp in filepaths:
             if not fp:

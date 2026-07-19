@@ -1,0 +1,53 @@
+name: CD - Build Release Executable
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller -r requirements.txt
+
+      - name: Build Executables with PyInstaller
+        run: |
+          pyinstaller PCB_creator.spec --clean
+          pyinstaller PCB_toolbox.spec --clean
+
+      - name: Package artifacts
+        shell: pwsh
+        run: |
+          mkdir release_dist
+          copy dist\PCB_creator.exe release_dist\
+          copy dist\PCB_toolbox.exe release_dist\
+          copy PCB_toolbox_manual.pdf release_dist\
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            release_dist/PCB_creator.exe
+            release_dist/PCB_toolbox.exe
+            release_dist/PCB_toolbox_manual.pdf
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
