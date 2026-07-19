@@ -41,6 +41,12 @@ jobs:
           copy dist\PCB_toolbox.exe release_dist\
           copy PCB_toolbox_manual.pdf release_dist\
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pcb-toolbox-executables
+          path: release_dist/*
+
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
