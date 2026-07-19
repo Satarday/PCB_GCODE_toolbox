@@ -20,12 +20,10 @@ DEFAULT_PARAMS = {
     "iso_feed_z": 50.0,
     "iso_cut_z": -0.1,
     "iso_spindle": 12000.0,
-
     "enable_rubout": False,
     "rubout_dia": 1.0,
     "rubout_width": 0.0,
     "rubout_overlap": 0.4,
-
     "enable_outline": True,
     "outline_dia": 1.0,
     "outline_feed_xy": 200.0,
@@ -33,25 +31,24 @@ DEFAULT_PARAMS = {
     "outline_cut_z": -1.6,
     "outline_spindle": 10000.0,
     "outline_depth_per_pass": 0.5,
-
     "enable_drill": True,
     "drill_feed_z": 100.0,
     "drill_cut_z": -1.8,
     "drill_spindle": 12000.0,
-
     "use_alignment_pins": True,
     "alignment_pin_dia": 3.0,
     "alignment_pin_offset": 5.0,
-
     "safe_z": 2.0,
     "origin": "bottom_left",
     "spindle_speed": 12000.0,
-    "feed_z": 50.0
+    "feed_z": 50.0,
 }
+
 
 def test_gcode_generator_init():
     generator = GCodeGenerator(DEFAULT_PARAMS)
     assert generator.params == DEFAULT_PARAMS
+
 
 def test_generate_all():
     # 1. Parse real geometries from example files
@@ -77,5 +74,5 @@ def test_generate_all():
         # Verify standard G-code markers
         assert "G21" in content  # Metric units
         assert "G90" in content  # Absolute positioning
-        assert "M3" in content or "M03" in content   # Spindle start
-        assert "M5" in content or "M05" in content   # Spindle stop
+        assert "M3" in content or "M03" in content  # Spindle start
+        assert "M5" in content or "M05" in content  # Spindle stop

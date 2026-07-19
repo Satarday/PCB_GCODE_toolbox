@@ -13,12 +13,14 @@ OUTLINE_FILE = os.path.join(GERBER_DIR, "Gerber_BoardOutlineLayer.GKO")
 COPPER_FILE = os.path.join(GERBER_DIR, "Gerber_TopLayer.GTL")
 DRILL_FILE = os.path.join(GERBER_DIR, "Drill_PTH_Through.DRL")
 
+
 def test_gerber_parser_init():
     parser = GerberParser()
     assert parser.unit_multiplier == 1.0
     assert parser.apertures == {}
     assert parser.macros == {}
     assert not parser.region_mode
+
 
 def test_parse_outline():
     assert os.path.exists(OUTLINE_FILE), f"Outline file not found at {OUTLINE_FILE}"
@@ -38,6 +40,7 @@ def test_parse_outline():
     assert width < 500  # realistic PCB width limit in mm
     assert height < 500
 
+
 def test_parse_copper():
     assert os.path.exists(COPPER_FILE), f"Copper file not found at {COPPER_FILE}"
     parser = GerberParser()
@@ -46,10 +49,12 @@ def test_parse_copper():
     assert isinstance(geom, MultiPolygon)
     assert not geom.is_empty
 
+
 def test_excellon_parser_init():
     parser = ExcellonParser()
     assert parser.tools == {}
     assert parser.unit_multiplier == 1.0
+
 
 def test_parse_drill():
     assert os.path.exists(DRILL_FILE), f"Drill file not found at {DRILL_FILE}"

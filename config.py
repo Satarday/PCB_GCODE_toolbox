@@ -5,16 +5,17 @@ import sys
 
 def get_user_config_dir() -> str:
     """Returns the platform-specific directory for user configuration files."""
-    if sys.platform == 'win32':
-        appdata = os.environ.get('APPDATA') or os.path.expanduser('~\\AppData\\Roaming')
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA") or os.path.expanduser("~\\AppData\\Roaming")
         config_dir = os.path.join(appdata, "PCB_GCODE_toolbox")
     else:
         config_dir = os.path.expanduser("~/.config/pcb_gcode_toolbox")
     os.makedirs(config_dir, exist_ok=True)
     return config_dir
 
+
 # Resolve old application-relative paths (for migration)
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     OLD_BASE = os.path.dirname(sys.executable)
 else:
     OLD_BASE = os.path.dirname(os.path.abspath(__file__))

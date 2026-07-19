@@ -33,18 +33,14 @@ class GCodeGenerator:
 
         centered_drills = []
         for d in drills:
-            centered_drills.append({
-                'x': d['x'] - cx,
-                'y': d['y'] - cy,
-                'diameter': d['diameter']
-            })
+            centered_drills.append({"x": d["x"] - cx, "y": d["y"] - cy, "diameter": d["diameter"]})
 
         # 2. Mirror bottom side if processing bottom
         if side == "bottom":
             centered_copper = self._mirror_geometry(centered_copper)
             centered_outline = self._mirror_geometry(centered_outline)
             for d in centered_drills:
-                d['x'] = -d['x']  # Mirror X coordinate
+                d["x"] = -d["x"]  # Mirror X coordinate
 
         # 3. Shift to final origin
         # If origin is bottom_left, we shift everything by (width/2, height/2) so min_x = 0, min_y = 0
@@ -56,11 +52,7 @@ class GCodeGenerator:
         final_outline = self._shift_geometry(centered_outline, dx, dy)
         final_drills = []
         for d in centered_drills:
-            final_drills.append({
-                'x': d['x'] + dx,
-                'y': d['y'] + dy,
-                'diameter': d['diameter']
-            })
+            final_drills.append({"x": d["x"] + dx, "y": d["y"] + dy, "diameter": d["diameter"]})
 
         # Ensure final_outline is a Polygon for boolean ops
         if isinstance(final_outline, MultiPolygon):
@@ -91,7 +83,7 @@ class GCodeGenerator:
                 spindle=self.params.get("iso_spindle", self.params.get("spindle_speed", 12000.0)),
                 comment="Isolation Routing",
                 copper_geom=final_copper,
-                tool_dia=self.params.get("isolation_dia", 0.2)
+                tool_dia=self.params.get("isolation_dia", 0.2),
             )
 
         # --- 2. Rubout (Clearing) ---
@@ -108,7 +100,7 @@ class GCodeGenerator:
                     spindle=self.params.get("rub_spindle", self.params.get("spindle_speed", 10000.0)),
                     comment="Rubout Clearing",
                     copper_geom=final_copper,
-                    tool_dia=self.params.get("rubout_dia", 1.0)
+                    tool_dia=self.params.get("rubout_dia", 1.0),
                 )
 
         # --- 3. Outline Cut ---
@@ -131,11 +123,13 @@ class GCodeGenerator:
     def _shift_geometry(self, geom, dx, dy):
         """Shifts shapely geometry by dx, dy"""
         from shapely.affinity import translate
+
         return translate(geom, xoff=dx, yoff=dy)
 
     def _mirror_geometry(self, geom):
         """Mirrors shapely geometry horizontally (along X axis)"""
         from shapely.affinity import scale
+
         # Scale X by -1, Y by 1 around origin (0,0)
         return scale(geom, xfact=-1.0, yfact=1.0, origin=(0.0, 0.0))
 
@@ -145,19 +139,19 @@ class GCodeGenerator:
         if geom.is_empty:
             return paths
 
-        if geom.geom_type == 'Polygon':
+        if geom.geom_type == "Polygon":
             paths.append(list(geom.exterior.coords))
             for interior in geom.interiors:
                 paths.append(list(interior.coords))
-        elif geom.geom_type == 'MultiPolygon':
+        elif geom.geom_type == "MultiPolygon":
             for poly in geom.geoms:
                 paths.extend(self._extract_paths(poly))
-        elif geom.geom_type in ['LineString', 'LinearRing']:
+        elif geom.geom_type in ["LineString", "LinearRing"]:
             paths.append(list(geom.coords))
-        elif geom.geom_type == 'MultiLineString':
+        elif geom.geom_type == "MultiLineString":
             for line in geom.geoms:
                 paths.append(list(line.coords))
-        elif geom.geom_type == 'GeometryCollection':
+        elif geom.geom_type == "GeometryCollection":
             for part in geom.geoms:
                 paths.extend(self._extract_paths(part))
         return paths
@@ -381,7 +375,7 @@ class GCodeGenerator:
 
             for i in range(len(raw_coords) - 1):
                 p1 = raw_coords[i]
-                p2 = raw_coords[i+1]
+                p2 = raw_coords[i + 1]
                 d = math.hypot(p2[0] - p1[0], p2[1] - p1[1])
                 perimeter += d
                 cum_dist.append(perimeter)
@@ -425,7 +419,7 @@ class GCodeGenerator:
             boundaries.sort()
 
             # Merge original path points and boundaries
-            new_path_events = [] # tuples of (dist, point)
+            new_path_events = []  # tuples of (dist, point)
 
             # Add original points
             for i, dist in enumerate(cum_dist):
@@ -436,12 +430,12 @@ class GCodeGenerator:
                 # Find which segment this boundary distance lies on
                 for i in range(len(cum_dist) - 1):
                     d1 = cum_dist[i]
-                    d2 = cum_dist[i+1]
+                    d2 = cum_dist[i + 1]
                     if d1 <= b_dist <= d2:
                         # Interpolate coordinates
                         ratio = (b_dist - d1) / (d2 - d1) if (d2 - d1) > 0 else 0.0
                         p1 = raw_coords[i]
-                        p2 = raw_coords[i+1]
+                        p2 = raw_coords[i + 1]
                         bx = p1[0] + ratio * (p2[0] - p1[0])
                         by = p1[1] + ratio * (p2[1] - p1[1])
                         new_path_events.append((b_dist, (bx, by)))
@@ -479,7 +473,7 @@ class GCodeGenerator:
                     pt = unique_events[i][1]
 
                     # Check if this segment is inside a tab (midpoint check)
-                    mid_dist = (unique_events[i-1][0] + dist) / 2.0
+                    mid_dist = (unique_events[i - 1][0] + dist) / 2.0
                     segment_inside = is_inside_tab(mid_dist)
 
                     if segment_inside != current_inside:
@@ -507,7 +501,7 @@ class GCodeGenerator:
         # Group drills by diameter
         drills_by_dia = {}
         for d in drills:
-            dia = d['diameter']
+            dia = d["diameter"]
             if dia not in drills_by_dia:
                 drills_by_dia[dia] = []
             drills_by_dia[dia].append(d)
@@ -567,10 +561,7 @@ class GCodeGenerator:
         px2 += dx
         py += dy
 
-        pins = [
-            {'x': px1, 'y': py},
-            {'x': px2, 'y': py}
-        ]
+        pins = [{"x": px1, "y": py}, {"x": px2, "y": py}]
 
         gcode = []
         gcode.append("; --- Alignment Pin Holes (Drill in Wasteboard) ---")
@@ -586,7 +577,7 @@ class GCodeGenerator:
         gcode.append(f"M03 S{spindle} ; Restart spindle")
 
         for i, pin in enumerate(pins):
-            gcode.append(f"\n; Pin {i+1} at X={pin['x']:.2f}, Y={pin['y']:.2f}")
+            gcode.append(f"\n; Pin {i + 1} at X={pin['x']:.2f}, Y={pin['y']:.2f}")
             gcode.append(f"G00 X{pin['x']:.3f} Y{pin['y']:.3f} ; Move to pin position")
             gcode.append(f"G01 Z{-pin_depth:.3f} F{feed_z} ; Drill plunge")
             gcode.append(f"G00 Z{safe_z:.3f} ; Retract")
@@ -597,7 +588,9 @@ class GCodeGenerator:
 
         return "\n".join(gcode)
 
-    def _paths_to_gcode(self, paths, feed_xy, feed_z, cut_z, safe_z, spindle, comment="", copper_geom=None, tool_dia=None):
+    def _paths_to_gcode(
+        self, paths, feed_xy, feed_z, cut_z, safe_z, spindle, comment="", copper_geom=None, tool_dia=None
+    ):
         """Converts raw point paths to a G-code program with tool-down optimization"""
         gcode = []
         gcode.append(f"; --- {comment} Toolpath ---")
@@ -615,7 +608,7 @@ class GCodeGenerator:
                 continue
 
             start = path[0]
-            gcode.append(f"\n; Path {i+1} start")
+            gcode.append(f"\n; Path {i + 1} start")
 
             if not tool_down:
                 gcode.append(f"G00 X{start[0]:.3f} Y{start[1]:.3f}")
@@ -630,7 +623,7 @@ class GCodeGenerator:
 
             # Check if we need to retract at the end of this path
             if i < len(paths) - 1:
-                next_start = paths[i+1][0]
+                next_start = paths[i + 1][0]
                 end_pt = path[-1]
 
                 # Calculate distance between paths
@@ -682,19 +675,19 @@ class GCodeGenerator:
 
         while remaining:
             best_idx = 0
-            best_dist = float('inf')
+            best_dist = float("inf")
             reverse_best = False
 
             for idx, path in enumerate(remaining):
                 # Distance squared to start of path
-                d_start = (path[0][0] - current_end[0])**2 + (path[0][1] - current_end[1])**2
+                d_start = (path[0][0] - current_end[0]) ** 2 + (path[0][1] - current_end[1]) ** 2
                 if d_start < best_dist:
                     best_dist = d_start
                     best_idx = idx
                     reverse_best = False
 
                 # Distance squared to end of path (if reversed)
-                d_end = (path[-1][0] - current_end[0])**2 + (path[-1][1] - current_end[1])**2
+                d_end = (path[-1][0] - current_end[0]) ** 2 + (path[-1][1] - current_end[1]) ** 2
                 if d_end < best_dist:
                     best_dist = d_end
                     best_idx = idx

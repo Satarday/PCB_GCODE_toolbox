@@ -20,33 +20,57 @@ from gerber_parser import ExcellonParser, GerberParser
 from simulator_router import register_dialog_active_setter, router as simulator_router
 
 DEFAULT_PRESETS = [
-    {"id": "grave_02", "name": "Гравёр V-образный 0.2мм (30°)", "diameter": 0.2, "feed_xy": 150.0, "feed_z": 50.0, "spindle": 12000.0},
-    {"id": "mill_10", "name": "Концевая фреза 1.0мм", "diameter": 1.0, "feed_xy": 400.0, "feed_z": 100.0, "spindle": 10000.0},
-    {"id": "mill_20", "name": "Концевая фреза 2.0мм", "diameter": 2.0, "feed_xy": 500.0, "feed_z": 150.0, "spindle": 10000.0},
-    {"id": "drill_08", "name": "Сверло 0.8мм", "diameter": 0.8, "feed_xy": 0.0, "feed_z": 120.0, "spindle": 12000.0}
+    {
+        "id": "grave_02",
+        "name": "Гравёр V-образный 0.2мм (30°)",
+        "diameter": 0.2,
+        "feed_xy": 150.0,
+        "feed_z": 50.0,
+        "spindle": 12000.0,
+    },
+    {
+        "id": "mill_10",
+        "name": "Концевая фреза 1.0мм",
+        "diameter": 1.0,
+        "feed_xy": 400.0,
+        "feed_z": 100.0,
+        "spindle": 10000.0,
+    },
+    {
+        "id": "mill_20",
+        "name": "Концевая фреза 2.0мм",
+        "diameter": 2.0,
+        "feed_xy": 500.0,
+        "feed_z": 150.0,
+        "spindle": 10000.0,
+    },
+    {"id": "drill_08", "name": "Сверло 0.8мм", "diameter": 0.8, "feed_xy": 0.0, "feed_z": 120.0, "spindle": 12000.0},
 ]
+
 
 def load_presets():
     if not os.path.exists(PRESETS_FILE):
         try:
-            with open(PRESETS_FILE, 'w', encoding='utf-8') as f:
+            with open(PRESETS_FILE, "w", encoding="utf-8") as f:
                 json.dump(DEFAULT_PRESETS, f, indent=2, ensure_ascii=False)
             return DEFAULT_PRESETS
         except Exception:
             return DEFAULT_PRESETS
     try:
-        with open(PRESETS_FILE, encoding='utf-8') as f:
+        with open(PRESETS_FILE, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return DEFAULT_PRESETS
 
+
 def save_presets(presets):
     try:
-        with open(PRESETS_FILE, 'w', encoding='utf-8') as f:
+        with open(PRESETS_FILE, "w", encoding="utf-8") as f:
             json.dump(presets, f, indent=2, ensure_ascii=False)
         return True
     except Exception:
         return False
+
 
 # Pydantic Model for Presets
 class Preset(BaseModel):
@@ -57,16 +81,20 @@ class Preset(BaseModel):
     feed_z: float
     spindle: float
 
+
 app = FastAPI(title="PCB Toolbox")
 
 last_heartbeat_time = time.time()
 dialog_active = False
 
+
 def set_dialog_active_state(active: bool):
     global dialog_active
     dialog_active = active
 
+
 register_dialog_active_setter(set_dialog_active_state)
+
 
 def monitor_heartbeat():
     global last_heartbeat_time, dialog_active
@@ -79,10 +107,12 @@ def monitor_heartbeat():
             print("No heartbeat received for 5 minutes. Shutting down server...")
             os._exit(0)
 
+
 @app.on_event("startup")
 def startup_event():
     # Start daemon thread to monitor heartbeats
     threading.Thread(target=monitor_heartbeat, daemon=True).start()
+
 
 # Enable CORS for development
 app.add_middleware(
@@ -93,9 +123,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Request Models
 class ScanFolderRequest(BaseModel):
     folder_path: str
+
 
 class PreviewPathsRequest(BaseModel):
     folder_path: str
@@ -106,6 +138,7 @@ class PreviewPathsRequest(BaseModel):
     side: str = "top"  # "top" or "bottom"
     params: dict[str, Any]
 
+
 class GenerateGCodeRequest(BaseModel):
     folder_path: str
     top_copper_files: list[str] = []
@@ -115,19 +148,21 @@ class GenerateGCodeRequest(BaseModel):
     side: str = "top"
     params: dict[str, Any]
 
+
 # Helper to extract paths for response JSON
 def geom_to_paths(geom) -> list[list[list[float]]]:
     paths = []
     if geom.is_empty:
         return paths
-    if geom.geom_type == 'Polygon':
+    if geom.geom_type == "Polygon":
         paths.append([list(pt) for pt in geom.exterior.coords])
         for interior in geom.interiors:
             paths.append([list(pt) for pt in interior.coords])
-    elif geom.geom_type == 'MultiPolygon':
+    elif geom.geom_type == "MultiPolygon":
         for poly in geom.geoms:
             paths.extend(geom_to_paths(poly))
     return paths
+
 
 @app.post("/api/creator/select_folder")
 def select_folder():
@@ -135,7 +170,7 @@ def select_folder():
     dialog_active = True
     try:
         # Determine the executable to run
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             # In compiled EXE mode, run the EXE itself
             cmd = [sys.executable, "--pick-folder-gerber"]
         else:
@@ -147,13 +182,7 @@ def select_folder():
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = subprocess.SW_HIDE
 
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            startupinfo=startupinfo
-        )
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, startupinfo=startupinfo)
         stdout, stderr = proc.communicate()
 
         folder_path = stdout.strip()
@@ -166,42 +195,45 @@ def select_folder():
     finally:
         dialog_active = False
 
+
 @app.post("/api/heartbeat")
 def heartbeat():
     global last_heartbeat_time
     last_heartbeat_time = time.time()
     return {"status": "ok"}
 
+
 @app.post("/api/shutdown")
 def shutdown():
     print("Shutdown request received from browser. Exiting...")
+
     def target():
         time.sleep(0.2)
         os._exit(0)
+
     threading.Thread(target=target, daemon=True).start()
     return {"status": "ok"}
+
 
 class SettingsPayload(BaseModel):
     params: dict[str, Any]
     selected_files: dict[str, list[str]]
+
 
 @app.get("/api/creator/settings")
 def get_settings():
     if not os.path.exists(SETTINGS_FILE):
         return {}
     try:
-        with open(SETTINGS_FILE, encoding='utf-8') as f:
+        with open(SETTINGS_FILE, encoding="utf-8") as f:
             data = json.load(f)
 
         # Migrate old settings structure if present at root level
         if "creator" not in data and ("params" in data or "selected_files" in data):
-            creator_data = {
-                "params": data.pop("params", {}),
-                "selected_files": data.pop("selected_files", {})
-            }
+            creator_data = {"params": data.pop("params", {}), "selected_files": data.pop("selected_files", {})}
             data["creator"] = creator_data
             try:
-                with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+                with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
             except Exception:
                 pass
@@ -210,28 +242,31 @@ def get_settings():
     except Exception:
         return {}
 
+
 @app.post("/api/creator/settings")
 def save_settings(payload: SettingsPayload):
     try:
         data = {}
         if os.path.exists(SETTINGS_FILE):
             try:
-                with open(SETTINGS_FILE, encoding='utf-8') as f:
+                with open(SETTINGS_FILE, encoding="utf-8") as f:
                     data = json.load(f)
             except Exception:
                 pass
 
         data["creator"] = payload.model_dump()
 
-        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Не удалось сохранить настройки: {str(e)}") from e
 
+
 @app.get("/api/creator/presets")
 def get_presets():
     return load_presets()
+
 
 @app.post("/api/creator/presets")
 def save_preset(preset: Preset):
@@ -250,6 +285,7 @@ def save_preset(preset: Preset):
     else:
         raise HTTPException(status_code=500, detail="Не удалось сохранить пресет.")
 
+
 @app.delete("/api/creator/presets/{preset_id}")
 def delete_preset(preset_id: str):
     presets = load_presets()
@@ -260,6 +296,7 @@ def delete_preset(preset_id: str):
         return {"status": "ok", "presets": new_presets}
     else:
         raise HTTPException(status_code=500, detail="Не удалось удалить пресет.")
+
 
 @app.post("/api/creator/scan_folder")
 def scan_folder(request: ScanFolderRequest):
@@ -278,26 +315,21 @@ def scan_folder(request: ScanFolderRequest):
         raise HTTPException(status_code=500, detail=f"Ошибка чтения папки: {str(e)}") from e
 
     # Detect default files
-    detected = {
-        "top_copper": [],
-        "bottom_copper": [],
-        "outline": [],
-        "drill": []
-    }
+    detected = {"top_copper": [], "bottom_copper": [], "outline": [], "drill": []}
 
     for f in files:
         f_lower = f.lower()
-        if f_lower.endswith('.gtl') or ('top' in f_lower and 'copper' in f_lower):
+        if f_lower.endswith(".gtl") or ("top" in f_lower and "copper" in f_lower):
             detected["top_copper"].append(f)
-        elif f_lower.endswith('.gbl') or ('bottom' in f_lower and 'copper' in f_lower):
+        elif f_lower.endswith(".gbl") or ("bottom" in f_lower and "copper" in f_lower):
             detected["bottom_copper"].append(f)
-        elif f_lower.endswith('.gko') or f_lower.endswith('.gm1') or 'outline' in f_lower or 'board' in f_lower:
+        elif f_lower.endswith(".gko") or f_lower.endswith(".gm1") or "outline" in f_lower or "board" in f_lower:
             detected["outline"].append(f)
 
     # Drill files detection (prioritizing DRL over TXT)
-    drl_files = [f for f in files if f.lower().endswith('.drl')]
-    txt_drill_files = [f for f in files if f.lower().endswith('.txt') and 'drill' in f.lower()]
-    other_drill_files = [f for f in files if 'drill' in f.lower() and f not in drl_files and f not in txt_drill_files]
+    drl_files = [f for f in files if f.lower().endswith(".drl")]
+    txt_drill_files = [f for f in files if f.lower().endswith(".txt") and "drill" in f.lower()]
+    other_drill_files = [f for f in files if "drill" in f.lower() and f not in drl_files and f not in txt_drill_files]
 
     if drl_files:
         detected["drill"] = drl_files
@@ -306,10 +338,8 @@ def scan_folder(request: ScanFolderRequest):
     elif other_drill_files:
         detected["drill"] = [other_drill_files[0]]
 
-    return {
-        "files": files,
-        "detected": detected
-    }
+    return {"files": files, "detected": detected}
+
 
 @app.post("/api/creator/preview_paths")
 def preview_paths(request: PreviewPathsRequest):
@@ -351,18 +381,14 @@ def preview_paths(request: PreviewPathsRequest):
         centered_outline = generator._shift_geometry(outline_geom, -cx, -cy)
         centered_drills = []
         for d in drills:
-            centered_drills.append({
-                'x': d['x'] - cx,
-                'y': d['y'] - cy,
-                'diameter': d['diameter']
-            })
+            centered_drills.append({"x": d["x"] - cx, "y": d["y"] - cy, "diameter": d["diameter"]})
 
         # Apply mirroring
         if request.side == "bottom":
             centered_copper = generator._mirror_geometry(centered_copper)
             centered_outline = generator._mirror_geometry(centered_outline)
             for d in centered_drills:
-                d['x'] = -d['x']
+                d["x"] = -d["x"]
 
         # Apply final origin
         dx, dy = 0.0, 0.0
@@ -373,14 +399,11 @@ def preview_paths(request: PreviewPathsRequest):
         final_outline = generator._shift_geometry(centered_outline, dx, dy)
         final_drills = []
         for d in centered_drills:
-            final_drills.append({
-                'x': d['x'] + dx,
-                'y': d['y'] + dy,
-                'diameter': d['diameter']
-            })
+            final_drills.append({"x": d["x"] + dx, "y": d["y"] + dy, "diameter": d["diameter"]})
 
         # Resolve board polygon for intersection operations
         from shapely.geometry import MultiPolygon
+
         if isinstance(final_outline, MultiPolygon):
             board_poly = max(final_outline.geoms, key=lambda p: p.area)
         else:
@@ -411,8 +434,8 @@ def preview_paths(request: PreviewPathsRequest):
         if request.params.get("enable_drill", True):
             for drill in final_drills:
                 # We can represent drills as small crosshairs or circles for toolpath preview
-                r = drill['diameter'] / 2.0
-                x, y = drill['x'], drill['y']
+                r = drill["diameter"] / 2.0
+                x, y = drill["x"], drill["y"]
                 drill_paths.append([[x - r, y], [x + r, y]])
                 drill_paths.append([[x, y - r], [x, y + r]])
 
@@ -447,17 +470,16 @@ def preview_paths(request: PreviewPathsRequest):
                 "rubout": rub_paths,
                 "outline": out_paths,
                 "drills": drill_paths,
-                "alignment_pins": pin_paths
+                "alignment_pins": pin_paths,
             },
-            "bounds": {
-                "width": width,
-                "height": height
-            }
+            "bounds": {"width": width, "height": height},
         }
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Ошибка генерации превью: {str(e)}") from e
+
 
 @app.post("/api/creator/generate_gcode")
 def generate_gcode(request: GenerateGCodeRequest):
@@ -492,27 +514,20 @@ def generate_gcode(request: GenerateGCodeRequest):
         saved_files = []
         for filename, content in gcode_files.items():
             filepath = os.path.join(output_dir, filename)
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
-            saved_files.append({
-                "name": filename,
-                "path": filepath,
-                "size": len(content),
-                "content": content
-            })
+            saved_files.append({"name": filename, "path": filepath, "size": len(content), "content": content})
 
-        return {
-            "output_dir": output_dir,
-            "files": saved_files
-        }
+        return {"output_dir": output_dir, "files": saved_files}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка генерации G-кода: {str(e)}") from e
 
+
 app.include_router(simulator_router)
 
 # Mount static folder
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     static_path = os.path.join(sys._MEIPASS, "static")
 else:
     static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -520,8 +535,10 @@ else:
 if os.path.exists(static_path):
     app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
 
+
 def open_browser():
     webbrowser.open("http://127.0.0.1:8000")
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] in ("--pick-folder", "--pick-folder-gerber", "--pick-folder-gcode"):
@@ -535,7 +552,7 @@ if __name__ == "__main__":
         root.withdraw()
 
         # Make the dialog topmost and bring it to front
-        root.attributes('-topmost', True)
+        root.attributes("-topmost", True)
         root.lift()
         root.focus_force()
         try:
@@ -549,23 +566,20 @@ if __name__ == "__main__":
         else:
             title = "Выберите папку с Gerber файлами"
 
-        folder = filedialog.askdirectory(
-            parent=root,
-            title=title
-        )
+        folder = filedialog.askdirectory(parent=root, title=title)
         root.destroy()
         if folder:
             print(folder)
         sys.exit(0)
 
-    if not getattr(sys, 'frozen', False):
+    if not getattr(sys, "frozen", False):
         os.makedirs(static_path, exist_ok=True)
 
     # Start browser with a slight delay
     Timer(1.5, open_browser).start()
 
     # Run Uvicorn
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         uvicorn.run(app, host="127.0.0.1", port=8000)
     else:
         uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
